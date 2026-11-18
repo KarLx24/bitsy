@@ -279,8 +279,7 @@ html.bitsy-demo #bitsy-dock,html.bitsy-demo #bitsy-hint{opacity:0;pointer-events
 
   var hp = (location.hash || '').slice(1).split('.'), form = '', id = '';
   hp.forEach(function(x){ if (ACTS[x]) form = x; else if (LINES[x]) id = x; });
-  if (!form) { try { form = localStorage.getItem('bitsy-form') || ''; } catch(e) {} }
-  if (!ACTS[form]) form = 'spider';
+  if (!ACTS[form]) form = 'wasp';   /* every visit opens on the Wasp unless the link names a form, e.g. #shark */
   if (!LINES[id]) { try { id = localStorage.getItem('bitsy-line') || ''; } catch(e) { id = ''; } }
   if (!LINES[id]) id = 'ember';
   var hair = true; try { hair = localStorage.getItem('bitsy-hair') !== 'off'; } catch(e) {}
