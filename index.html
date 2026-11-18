@@ -245,6 +245,14 @@ html.bitsy-demo #bitsy-dock,html.bitsy-demo #bitsy-hint{opacity:0;pointer-events
 #bitsy-bottom #bitsy-dock{position:static;max-width:100%}
 #bitsy-bottom #bitsy-credit{position:static;align-self:flex-end;text-align:right;padding-right:6px;font-size:10px}
 #bitsy-hint{bottom:112px}
+#app{transform:translate(var(--bx,0px),var(--by,0px)) scale(var(--bs,1))!important;transform-origin:0 0!important}
+#bitsy-note{display:none;position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);z-index:70;max-width:min(80vw,420px);padding:14px 18px;border-radius:14px;background:rgba(30,33,38,.9);border:1px solid rgba(255,255,255,.12);font:500 13px/1.5 Inter,system-ui,sans-serif;color:#d5dbe1;text-align:center}
+html.bitsy-mobile #bitsy-dock,html.bitsy-tall #bitsy-dock{flex-wrap:nowrap;overflow-x:auto;touch-action:pan-x;-webkit-overflow-scrolling:touch;scrollbar-width:none;max-width:100%}
+html.bitsy-mobile #bitsy-dock>*,html.bitsy-tall #bitsy-dock>*{flex:0 0 auto}
+html.bitsy-mobile #bitsy-dock::-webkit-scrollbar,html.bitsy-tall #bitsy-dock::-webkit-scrollbar{display:none}
+html.bitsy-mobile #bitsy-credit,html.bitsy-tall #bitsy-credit{white-space:normal;font-size:9px;line-height:1.35}
+html.bitsy-mobile #bitsy-hint,html.bitsy-tall #bitsy-hint{display:none}
+html.bitsy-mobile #bitsy-bottom{bottom:max(6px,env(safe-area-inset-bottom))}
 </style>
 <script>
 /* Bitsy controls: forms that swap in place, live colour lines (the chameleon sweep), playback speed, clickable sections. */
@@ -276,6 +284,25 @@ html.bitsy-demo #bitsy-dock,html.bitsy-demo #bitsy-hint{opacity:0;pointer-events
   var NAMES = {spider:'Spider', piranha:'Piranha', wasp:'Wasp', shark:'Shark', scorpion:'Scorpion', manta:'Manta'};
   var FORMS = ['wasp','spider','scorpion','shark','manta','piranha'];
   var HANDLE = {spider:'SP', piranha:'PIRANHA', wasp:'WASP'};
+
+  /* phones: draw at 1x (a 3x screen would ask for nine times the pixels), and frame the robot for a tall screen */
+  var mobile = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches) && Math.min(screen.width, screen.height) < 820;
+  if (mobile) {
+    try { Object.defineProperty(window, 'devicePixelRatio', {get:function(){ return 1; }, configurable:true}); } catch(e) {}
+    document.documentElement.classList.add('bitsy-mobile');
+  }
+  function view(){
+    var w = innerWidth, h = innerHeight, s;
+    if (w / h < 0.8) { s = w / 760; return {s:s, bx:w / 2 - 800 * s, by:Math.max(0, (h * 0.84 - 900 * s) / 2), tall:true}; }
+    s = Math.min(w / 1600, h / 900);
+    return {s:s, bx:0, by:0, tall:false};
+  }
+  function place(){
+    var v = view(), st = document.documentElement.style;
+    st.setProperty('--bs', v.s); st.setProperty('--bx', v.bx + 'px'); st.setProperty('--by', v.by + 'px');
+    document.documentElement.classList.toggle('bitsy-tall', v.tall);
+  }
+  place(); window.addEventListener('resize', place); window.addEventListener('orientationchange', place);
 
   var hp = (location.hash || '').slice(1).split('.'), form = '', id = '';
   hp.forEach(function(x){ if (ACTS[x]) form = x; else if (LINES[x]) id = x; });
@@ -450,9 +477,9 @@ html.bitsy-demo #bitsy-dock,html.bitsy-demo #bitsy-hint{opacity:0;pointer-events
   function overRobot(e){
     var h = window[HANDLE[form] || 'FORM'], b = h && h[ROOT[form] || 'body'];
     if (!h || !h.st || !b || !b.root) return false;
-    var p = h.st.project(b.root.position), s = Math.min(innerWidth / 1600, innerHeight / 900);
+    var p = h.st.project(b.root.position), v = view();
     if (!p) return false;
-    return Math.hypot(e.clientX / s - p[0], e.clientY / s - (p[1] - 20)) < 250 * zoom;
+    return Math.hypot((e.clientX - v.bx) / v.s - p[0], (e.clientY - v.by) / v.s - (p[1] - 20)) < 250 * zoom;
   }
   function free(e){ var t = e.target; return !(t.closest && t.closest('#bitsy-dock, #bitsy-credit, .vp .nav div, .vp .pill, a, button')); }
   function hov(v){
@@ -475,6 +502,8 @@ html.bitsy-demo #bitsy-dock,html.bitsy-demo #bitsy-hint{opacity:0;pointer-events
     var h = window[HANDLE[form] || 'FORM'], st = h && h.st;
     if (!st || st._bz) return;
     var f = st.frame; st._bz = true;
+    if (mobile && st.setQuality) { try { st.setQuality({samples:2, shadow:2048}); } catch(e) {} }
+    var cv = document.getElementById('gl'); if (cv) cv.addEventListener('webglcontextlost', function(){ note('This device ran out of graphics memory for this form. Try the Shark or Manta, or open Bitsy on a computer.'); });
     st.frame = function(c, o){ var c2 = {}; for (var k in c) c2[k] = c[k]; c2.d = c.d / zoom; c2.az = c.az + orbit.az; c2.el = Math.max(-1.25, Math.min(1.45, c.el + orbit.el)); return f.call(st, c2, o); };
   }
   wadd('wheel', function(e){
@@ -540,8 +569,13 @@ html.bitsy-demo #bitsy-dock,html.bitsy-demo #bitsy-hint{opacity:0;pointer-events
   }
 
   var lastState = 'open', marks = 0, demoOn = false;
+  function note(t){
+    var n = document.getElementById('bitsy-note') || document.body.appendChild(Object.assign(document.createElement('div'), {id:'bitsy-note'}));
+    n.textContent = t; n.style.display = t ? 'block' : 'none';
+  }
+  setTimeout(function(){ if (!B.ready) note('Still building the robot. Bitsy is a heavy 3D page and can take a while on a phone.'); }, 12000);
   var B = window.BITSY = {form:form, id:id, line:window.BITSY_LINE, quick:quick, names:NAMES, ready:false,
-    now:pn, raf:raf, on:wadd, hold:hold, swap:swap, say:say, recolor:recolor,
+    now:pn, raf:raf, on:wadd, hold:hold, swap:swap, say:say, recolor:recolor, view:view,
     freeze:function(b){ rebase(); clocks[gen].frozen = !!b; clocks[gen].boost = 1; },
     explode:function(){ rebase(); clocks[gen].frozen = false; clocks[gen].boost = 1.7 / speed; seek(TEAR[form]); },
     mark:function(s){
@@ -551,7 +585,7 @@ html.bitsy-demo #bitsy-dock,html.bitsy-demo #bitsy-hint{opacity:0;pointer-events
     }};
   wadd('simframe', function(){
     if (cur >= 0 && cur !== gen) { window.SIM_SHOWN = false; return; }   /* a frame from the form being replaced */
-    B.ready = true; install(); document.title = 'Bitsy BT-8 · ' + NAMES[form] + ' form';
+    B.ready = true; note(''); install(); document.title = 'Bitsy BT-8 · ' + NAMES[form] + ' form';
     if (B.onReady) { var f = B.onReady; B.onReady = null; f(); return; }
     var gl = document.getElementById('gl'); if (gl && cover.parentNode) gl.after(cover);
     if (!quick) hold();
@@ -1464,8 +1498,8 @@ function pose(t) {
 
 /* layout: sit on the same spot the robots stand on */
 function resize() {
-  const w = innerWidth, h = innerHeight, s = Math.min(w / 1600, h / 900);
-  const cx = 785 * s, cy = 520 * s;
+  const w = innerWidth, h = innerHeight, v = B.view(), s = v.s;
+  const cx = v.bx + 785 * s, cy = v.by + 520 * s;
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
