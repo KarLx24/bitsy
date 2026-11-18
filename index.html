@@ -552,7 +552,7 @@ html.bitsy-demo #bitsy-dock,html.bitsy-demo #bitsy-hint{opacity:0;pointer-events
     }};
   wadd('simframe', function(){
     if (cur >= 0 && cur !== gen) { window.SIM_SHOWN = false; return; }   /* a frame from the form being replaced */
-    B.ready = true; install();
+    B.ready = true; install(); document.title = 'Bitsy BT-8 · ' + NAMES[form] + ' form';
     if (B.onReady) { var f = B.onReady; B.onReady = null; f(); return; }
     var gl = document.getElementById('gl'); if (gl && cover.parentNode) gl.after(cover);
     if (!quick) hold();
